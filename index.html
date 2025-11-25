@@ -1,0 +1,882 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Crypto Checkout - MultiCurrency Payment</title>
+    <script src="https://cdn.jsdelivr.net/npm/ethers@5.7.2/dist/ethers.umd.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 520px;
+            width: 100%;
+        }
+
+        .checkout-card {
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+
+        .header h1 {
+            font-size: 24px;
+            font-weight: 600;
+            margin-bottom: 8px;
+        }
+
+        .header p {
+            opacity: 0.9;
+            font-size: 14px;
+        }
+
+        .content {
+            padding: 30px;
+        }
+
+        .order-info {
+            background: #f8f9fa;
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 24px;
+        }
+
+        .order-info h3 {
+            font-size: 14px;
+            color: #6c757d;
+            margin-bottom: 12px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .order-row {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 10px;
+            font-size: 15px;
+        }
+
+        .order-row:last-child {
+            margin-bottom: 0;
+            padding-top: 12px;
+            border-top: 2px solid #dee2e6;
+            font-weight: 600;
+            font-size: 18px;
+        }
+
+        .label {
+            color: #6c757d;
+        }
+
+        .value {
+            color: #212529;
+            font-weight: 500;
+        }
+
+        .tabs {
+            display: flex;
+            gap: 12px;
+            margin-bottom: 24px;
+            background: #f8f9fa;
+            padding: 6px;
+            border-radius: 12px;
+        }
+
+        .tab {
+            flex: 1;
+            padding: 12px;
+            border: none;
+            background: transparent;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 600;
+            color: #6c757d;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .tab.active {
+            background: white;
+            color: #667eea;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+
+        .tab-content {
+            display: none;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        .currency-selector {
+            margin-bottom: 24px;
+        }
+
+        .currency-selector label {
+            display: block;
+            font-size: 14px;
+            font-weight: 600;
+            color: #495057;
+            margin-bottom: 12px;
+        }
+
+        .currency-options {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+        }
+
+        .currency-option {
+            background: #f8f9fa;
+            border: 2px solid #dee2e6;
+            border-radius: 12px;
+            padding: 16px;
+            cursor: pointer;
+            transition: all 0.2s;
+            text-align: center;
+        }
+
+        .currency-option:hover {
+            border-color: #667eea;
+            background: #f0f4ff;
+        }
+
+        .currency-option.selected {
+            border-color: #667eea;
+            background: #f0f4ff;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+
+        .currency-option input[type="radio"] {
+            display: none;
+        }
+
+        .currency-icon {
+            font-size: 32px;
+            margin-bottom: 8px;
+        }
+
+        .currency-name {
+            font-weight: 600;
+            color: #212529;
+            font-size: 16px;
+        }
+
+        .manual-payment-info {
+            background: #e7f3ff;
+            border-left: 4px solid #0066cc;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+
+        .manual-payment-info h4 {
+            color: #004085;
+            margin-bottom: 16px;
+            font-size: 16px;
+        }
+
+        .payment-detail {
+            margin-bottom: 16px;
+        }
+
+        .payment-detail:last-child {
+            margin-bottom: 0;
+        }
+
+        .payment-detail-label {
+            font-size: 12px;
+            color: #6c757d;
+            margin-bottom: 4px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .payment-detail-value {
+            background: white;
+            padding: 12px;
+            border-radius: 8px;
+            font-family: monospace;
+            font-size: 13px;
+            word-break: break-all;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .copy-btn {
+            padding: 6px 12px;
+            background: #667eea;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            font-size: 12px;
+            cursor: pointer;
+            white-space: nowrap;
+            transition: all 0.2s;
+        }
+
+        .copy-btn:hover {
+            background: #5568d3;
+        }
+
+        .copy-btn.copied {
+            background: #28a745;
+        }
+
+        .warning-box {
+            background: #fff3cd;
+            border-left: 4px solid #ffc107;
+            padding: 16px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+
+        .warning-box p {
+            font-size: 14px;
+            color: #856404;
+            margin: 0;
+        }
+
+        .wallet-info {
+            background: #d4edda;
+            border-left: 4px solid #28a745;
+            padding: 16px;
+            border-radius: 8px;
+            margin-bottom: 24px;
+            display: none;
+        }
+
+        .wallet-info.show {
+            display: block;
+        }
+
+        .wallet-info p {
+            font-size: 14px;
+            color: #155724;
+            margin: 0;
+        }
+
+        .wallet-address {
+            font-family: monospace;
+            font-size: 12px;
+            background: rgba(0,0,0,0.05);
+            padding: 8px;
+            border-radius: 4px;
+            margin-top: 8px;
+            word-break: break-all;
+        }
+
+        .btn {
+            width: 100%;
+            padding: 16px;
+            border: none;
+            border-radius: 12px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+        }
+
+        .btn-primary:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(102, 126, 234, 0.5);
+        }
+
+        .btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+
+        .status-message {
+            padding: 16px;
+            border-radius: 12px;
+            margin-bottom: 20px;
+            display: none;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .status-message.show {
+            display: flex;
+        }
+
+        .status-message.info {
+            background: #d1ecf1;
+            color: #0c5460;
+            border-left: 4px solid #17a2b8;
+        }
+
+        .status-message.success {
+            background: #d4edda;
+            color: #155724;
+            border-left: 4px solid #28a745;
+        }
+
+        .status-message.error {
+            background: #f8d7da;
+            color: #721c24;
+            border-left: 4px solid #dc3545;
+        }
+
+        .spinner {
+            border: 3px solid rgba(255, 255, 255, 0.3);
+            border-top: 3px solid white;
+            border-radius: 50%;
+            width: 20px;
+            height: 20px;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .success-animation {
+            text-align: center;
+            padding: 40px 20px;
+        }
+
+        .checkmark {
+            width: 80px;
+            height: 80px;
+            border-radius: 50%;
+            background: #28a745;
+            margin: 0 auto 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 48px;
+            color: white;
+        }
+
+        .tx-link {
+            display: inline-block;
+            margin-top: 16px;
+            padding: 12px 24px;
+            background: #f8f9fa;
+            color: #667eea;
+            text-decoration: none;
+            border-radius: 8px;
+            font-weight: 600;
+            transition: all 0.2s;
+        }
+
+        .tx-link:hover {
+            background: #e9ecef;
+        }
+
+        .footer {
+            text-align: center;
+            padding: 20px;
+            color: #6c757d;
+            font-size: 12px;
+        }
+
+        .powered-by {
+            color: white;
+            text-align: center;
+            margin-top: 20px;
+            font-size: 14px;
+            opacity: 0.9;
+        }
+
+        .powered-by a {
+            color: white;
+            text-decoration: none;
+            font-weight: 600;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="checkout-card">
+            <div class="header">
+                <h1>🔐 Secure Crypto Payment</h1>
+                <p>Fast, secure stablecoin checkout</p>
+            </div>
+
+            <div class="content" id="paymentForm">
+                <!-- Order Information -->
+                <div class="order-info">
+                    <h3>Order Details</h3>
+                    <div class="order-row">
+                        <span class="label">Order ID:</span>
+                        <span class="value" id="displayOrderId">Loading...</span>
+                    </div>
+                    <div class="order-row">
+                        <span class="label">Amount:</span>
+                        <span class="value" id="displayAmount">$0.00</span>
+                    </div>
+                    <div class="order-row">
+                        <span class="label">Platform Fee (0.4%):</span>
+                        <span class="value" id="displayFee">$0.00</span>
+                    </div>
+                    <div class="order-row">
+                        <span class="label">Total:</span>
+                        <span class="value" id="displayTotal">$0.00</span>
+                    </div>
+                </div>
+
+                <!-- Payment Method Tabs -->
+                <div class="tabs">
+                    <button class="tab active" onclick="switchTab('connect')">
+                        🦊 Connect Wallet
+                    </button>
+                    <button class="tab" onclick="switchTab('manual')">
+                        💳 External Wallet
+                    </button>
+                </div>
+
+                <!-- Connect Wallet Tab -->
+                <div class="tab-content active" id="connectTab">
+                    <!-- Wallet Info -->
+                    <div class="wallet-info" id="walletInfo">
+                        <p><strong>✅ Wallet Connected</strong></p>
+                        <div class="wallet-address" id="walletAddress"></div>
+                    </div>
+
+                    <!-- Currency Selection -->
+                    <div class="currency-selector">
+                        <label>Select Payment Currency</label>
+                        <div class="currency-options">
+                            <label class="currency-option selected">
+                                <input type="radio" name="currency" value="USDC" checked>
+                                <div class="currency-icon">💵</div>
+                                <div class="currency-name">USDC</div>
+                            </label>
+                            <label class="currency-option">
+                                <input type="radio" name="currency" value="EURC">
+                                <div class="currency-icon">💶</div>
+                                <div class="currency-name">EURC</div>
+                            </label>
+                        </div>
+                    </div>
+
+                    <!-- Status Messages -->
+                    <div class="status-message" id="statusMessage"></div>
+
+                    <!-- Payment Button -->
+                    <button class="btn btn-primary" id="payButton" onclick="initiatePayment()">
+                        Connect Wallet & Pay
+                    </button>
+                </div>
+
+                <!-- Manual Payment Tab -->
+                <div class="tab-content" id="manualTab">
+                    <div class="manual-payment-info">
+                        <h4>📤 Send Payment from Your Wallet</h4>
+                        
+                        <div class="payment-detail">
+                            <div class="payment-detail-label">Merchant Address</div>
+                            <div class="payment-detail-value">
+                                <span id="merchantAddressDisplay">Loading...</span>
+                                <button class="copy-btn" onclick="copyToClipboard('merchantAddress', this)">
+                                    Copy
+                                </button>
+                            </div>
+                        </div>
+
+                        <div class="payment-detail">
+                            <div class="payment-detail-label">Amount to Send</div>
+                            <div class="payment-detail-value">
+                                <span id="manualAmountDisplay">$0.00</span>
+                                <button class="copy-btn" onclick="copyAmount(this)">
+                                    Copy
+                                </button>
+                            </div>
+                        </div>
+
+                        <div class="payment-detail">
+                            <div class="payment-detail-label">Token</div>
+                            <div class="payment-detail-value">
+                                <span id="manualTokenDisplay">USDC</span>
+                            </div>
+                        </div>
+
+                        <div class="payment-detail">
+                            <div class="payment-detail-label">Order Reference (Keep for your records)</div>
+                            <div class="payment-detail-value">
+                                <span id="manualOrderIdDisplay">ORDER-123</span>
+                                <button class="copy-btn" onclick="copyToClipboard('manualOrderId', this)">
+                                    Copy
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="warning-box">
+                        <p><strong>⚠️ Important:</strong> Send the exact amount shown above to the merchant address. The merchant will verify your payment by matching the transaction amount and timestamp with your Order ID. Keep your Order ID for reference.</p>
+                    </div>
+
+                    <button class="btn btn-primary" onclick="window.close()">
+                        Payment Sent - Close Window
+                    </button>
+                </div>
+
+                <div class="footer">
+                    Secured by blockchain technology
+                </div>
+            </div>
+
+            <!-- Success Screen (Hidden by default) -->
+            <div class="content" id="successScreen" style="display: none;">
+                <div class="success-animation">
+                    <div class="checkmark">✓</div>
+                    <h2 style="margin-bottom: 12px;">Payment Successful!</h2>
+                    <p style="color: #6c757d; margin-bottom: 8px;">Your payment has been confirmed on the blockchain</p>
+                    <p style="font-weight: 600; color: #212529;" id="successOrderId"></p>
+                    <a class="tx-link" id="txLink" href="#" target="_blank">View Transaction →</a>
+                </div>
+                <div class="footer">
+                    You can close this window
+                </div>
+            </div>
+        </div>
+
+        <div class="powered-by">
+            Powered by <a href="#">MultiCurrency Checkout</a>
+        </div>
+    </div>
+
+    <script>
+        // ============ CONFIGURATION ============
+        const CONFIG = {
+            contractAddress: "0xc512F8C765E3e89E360da756E1feA921A0693039", // UPDATE AFTER DEPLOYMENT
+            chainId: "0x4CEF52", // Arc Testnet Chain ID (5042002 in decimal)
+            rpcUrl: "https://rpc.testnet.arc.network",
+            explorerUrl: "https://testnet.arcscan.app",
+            tokens: {
+                USDC: "0x3600000000000000000000000000000000000000",
+                EURC: "0x89B50855Aa3bE2F677cD6303Cec089B5F319D72a"
+            }
+        };
+
+        // Contract ABI (minimal - only what we need)
+        const CONTRACT_ABI = [
+            "function processPayment(address _merchant, address _token, uint256 _amount, string _orderId) external returns (bytes32)",
+            "function calculateFee(uint256 _amount) external pure returns (uint256, uint256)",
+            "function getMerchantPaymentAddress(address _merchant) external view returns (address)",
+            "event PaymentProcessed(bytes32 indexed paymentId, address indexed merchant, address indexed customer, address token, uint256 amount, uint256 fee, string orderId)"
+        ];
+
+        const ERC20_ABI = [
+            "function approve(address spender, uint256 amount) external returns (bool)",
+            "function allowance(address owner, address spender) external view returns (uint256)",
+            "function balanceOf(address account) external view returns (uint256)"
+        ];
+
+        // ============ STATE ============
+        let provider, signer, userAddress, merchantPaymentAddress;
+        let orderData = {
+            merchantAddress: "",
+            orderId: "",
+            amount: "",
+            selectedCurrency: "USDC"
+        };
+
+        // ============ INITIALIZATION ============
+        window.addEventListener('DOMContentLoaded', async () => {
+            loadOrderData();
+            setupCurrencySelector();
+            await loadMerchantAddress();
+        });
+
+        function loadOrderData() {
+            const urlParams = new URLSearchParams(window.location.search);
+            orderData.merchantAddress = urlParams.get('merchant') || "0x0000000000000000000000000000000000000000";
+            orderData.orderId = urlParams.get('orderId') || `ORDER-${Date.now()}`;
+            orderData.amount = urlParams.get('amount') || "100.00";
+
+            document.getElementById('displayOrderId').textContent = orderData.orderId;
+            document.getElementById('displayAmount').textContent = `$${orderData.amount}`;
+            
+            const amount = parseFloat(orderData.amount);
+            const fee = (amount * 0.004).toFixed(2);
+            const total = (amount * 1.004).toFixed(2);
+            
+            document.getElementById('displayFee').textContent = `$${fee}`;
+            document.getElementById('displayTotal').textContent = `$${total}`;
+
+            // Update manual payment display
+            document.getElementById('manualAmountDisplay').textContent = `$${total}`;
+            document.getElementById('manualOrderIdDisplay').textContent = orderData.orderId;
+        }
+
+        async function loadMerchantAddress() {
+            try {
+                const readProvider = new ethers.providers.JsonRpcProvider(CONFIG.rpcUrl);
+                const contract = new ethers.Contract(CONFIG.contractAddress, CONTRACT_ABI, readProvider);
+                
+                merchantPaymentAddress = await contract.getMerchantPaymentAddress(orderData.merchantAddress);
+                document.getElementById('merchantAddressDisplay').textContent = merchantPaymentAddress;
+            } catch (error) {
+                console.error('Error loading merchant address:', error);
+                document.getElementById('merchantAddressDisplay').textContent = 'Error loading address';
+            }
+        }
+
+        function setupCurrencySelector() {
+            const options = document.querySelectorAll('.currency-option');
+            options.forEach(option => {
+                option.addEventListener('click', () => {
+                    options.forEach(opt => opt.classList.remove('selected'));
+                    option.classList.add('selected');
+                    const radio = option.querySelector('input[type="radio"]');
+                    radio.checked = true;
+                    orderData.selectedCurrency = radio.value;
+                    document.getElementById('manualTokenDisplay').textContent = radio.value;
+                });
+            });
+        }
+
+        function switchTab(tab) {
+            const tabs = document.querySelectorAll('.tab');
+            const contents = document.querySelectorAll('.tab-content');
+            
+            tabs.forEach(t => t.classList.remove('active'));
+            contents.forEach(c => c.classList.remove('active'));
+            
+            if (tab === 'connect') {
+                tabs[0].classList.add('active');
+                document.getElementById('connectTab').classList.add('active');
+            } else {
+                tabs[1].classList.add('active');
+                document.getElementById('manualTab').classList.add('active');
+            }
+        }
+
+        function copyToClipboard(elementId, button) {
+            let text;
+            if (elementId === 'merchantAddress') {
+                text = merchantPaymentAddress;
+            } else if (elementId === 'manualOrderId') {
+                text = orderData.orderId;
+            }
+            
+            navigator.clipboard.writeText(text).then(() => {
+                button.textContent = '✓ Copied';
+                button.classList.add('copied');
+                setTimeout(() => {
+                    button.textContent = 'Copy';
+                    button.classList.remove('copied');
+                }, 2000);
+            });
+        }
+
+        function copyAmount(button) {
+            const amount = (parseFloat(orderData.amount) * 1.004).toFixed(2);
+            navigator.clipboard.writeText(amount).then(() => {
+                button.textContent = '✓ Copied';
+                button.classList.add('copied');
+                setTimeout(() => {
+                    button.textContent = 'Copy';
+                    button.classList.remove('copied');
+                }, 2000);
+            });
+        }
+
+        // ============ PAYMENT FLOW ============
+        async function initiatePayment() {
+            const payButton = document.getElementById('payButton');
+            
+            try {
+                if (!provider) {
+                    showStatus('Connecting wallet...', 'info');
+                    payButton.disabled = true;
+                    payButton.innerHTML = '<div class="spinner"></div> Connecting...';
+                    
+                    await connectWallet();
+                    
+                    payButton.innerHTML = 'Continue to Payment';
+                    payButton.disabled = false;
+                    return;
+                }
+
+                payButton.disabled = true;
+                await processPayment();
+                
+            } catch (error) {
+                console.error('Payment error:', error);
+                showStatus(error.message || 'Payment failed. Please try again.', 'error');
+                payButton.disabled = false;
+                payButton.innerHTML = 'Try Again';
+            }
+        }
+
+        async function connectWallet() {
+            if (!window.ethereum) {
+                throw new Error('Please install MetaMask or another Web3 wallet');
+            }
+
+            await window.ethereum.request({ method: 'eth_requestAccounts' });
+
+            provider = new ethers.providers.Web3Provider(window.ethereum);
+            signer = provider.getSigner();
+            userAddress = await signer.getAddress();
+
+            const network = await provider.getNetwork();
+            if (network.chainId !== parseInt(CONFIG.chainId, 16)) {
+                await switchNetwork();
+            }
+
+            document.getElementById('walletAddress').textContent = userAddress;
+            document.getElementById('walletInfo').classList.add('show');
+            showStatus('Wallet connected successfully!', 'success');
+        }
+
+        async function switchNetwork() {
+            try {
+                await window.ethereum.request({
+                    method: 'wallet_switchEthereumChain',
+                    params: [{ chainId: CONFIG.chainId }],
+                });
+            } catch (error) {
+                if (error.code === 4902) {
+                    await window.ethereum.request({
+                        method: 'wallet_addEthereumChain',
+                        params: [{
+                            chainId: CONFIG.chainId,
+                            chainName: 'Arc Testnet',
+                            nativeCurrency: {
+                                name: 'ETH',
+                                symbol: 'ETH',
+                                decimals: 18
+                            },
+                            rpcUrls: [CONFIG.rpcUrl],
+                            blockExplorerUrls: [CONFIG.explorerUrl]
+                        }]
+                    });
+                } else {
+                    throw error;
+                }
+            }
+        }
+
+        async function processPayment() {
+            const payButton = document.getElementById('payButton');
+            const tokenAddress = CONFIG.tokens[orderData.selectedCurrency];
+            const amountWithFee = (parseFloat(orderData.amount) * 1.004).toFixed(2);
+            const amountWei = ethers.utils.parseUnits(amountWithFee, 6);
+
+            const checkoutContract = new ethers.Contract(CONFIG.contractAddress, CONTRACT_ABI, signer);
+            const tokenContract = new ethers.Contract(tokenAddress, ERC20_ABI, signer);
+
+            try {
+                showStatus('Checking token balance...', 'info');
+                const balance = await tokenContract.balanceOf(userAddress);
+                
+                if (balance.lt(amountWei)) {
+                    throw new Error(`Insufficient ${orderData.selectedCurrency} balance`);
+                }
+
+                showStatus('Checking token allowance...', 'info');
+                const allowance = await tokenContract.allowance(userAddress, CONFIG.contractAddress);
+
+                if (allowance.lt(amountWei)) {
+                    payButton.innerHTML = '<div class="spinner"></div> Approve Token Spending...';
+                    showStatus(`Requesting approval to spend ${orderData.selectedCurrency}...`, 'info');
+                    
+                    const approveTx = await tokenContract.approve(CONFIG.contractAddress, amountWei);
+                    showStatus('Waiting for approval confirmation...', 'info');
+                    await approveTx.wait();
+                    
+                    showStatus('Approval confirmed!', 'success');
+                }
+
+                payButton.innerHTML = '<div class="spinner"></div> Processing Payment...';
+                showStatus('Processing your payment...', 'info');
+
+                const paymentTx = await checkoutContract.processPayment(
+                    orderData.merchantAddress,
+                    tokenAddress,
+                    amountWei,
+                    orderData.orderId
+                );
+
+                showStatus('Waiting for blockchain confirmation...', 'info');
+                const receipt = await paymentTx.wait();
+
+                showSuccessScreen(receipt.transactionHash);
+
+            } catch (error) {
+                console.error('Transaction error:', error);
+                
+                if (error.code === 4001) {
+                    throw new Error('Transaction rejected by user');
+                } else if (error.code === -32603) {
+                    throw new Error('Transaction failed. Please check your balance and try again.');
+                } else {
+                    throw new Error(error.message || 'Transaction failed');
+                }
+            }
+        }
+
+        function showStatus(message, type) {
+            const statusElement = document.getElementById('statusMessage');
+            statusElement.textContent = message;
+            statusElement.className = `status-message ${type} show`;
+        }
+
+        function showSuccessScreen(txHash) {
+            document.getElementById('paymentForm').style.display = 'none';
+            document.getElementById('successScreen').style.display = 'block';
+            document.getElementById('successOrderId').textContent = `Order #${orderData.orderId}`;
+            document.getElementById('txLink').href = `${CONFIG.explorerUrl}/tx/${txHash}`;
+
+            if (window.parent !== window) {
+                window.parent.postMessage({
+                    type: 'PAYMENT_SUCCESS',
+                    orderId: orderData.orderId,
+                    txHash: txHash
+                }, '*');
+            }
+        }
+
+        if (window.ethereum) {
+            window.ethereum.on('chainChanged', () => {
+                window.location.reload();
+            });
+
+            window.ethereum.on('accountsChanged', () => {
+                window.location.reload();
+            });
+        }
+    </script>
+</body>
+</html>
